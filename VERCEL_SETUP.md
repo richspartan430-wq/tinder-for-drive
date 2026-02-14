@@ -62,6 +62,8 @@ This browser error usually comes from:
 
 The app itself does **not** use `localStorage` or `sessionStorage`.
 
+**"Access to storage is not allowed from this context"** – This comes from the browser or extensions (e.g. ad blockers, privacy tools), not from our code. To reduce it: open the app in a normal tab (not in an iframe), try incognito, or temporarily disable extensions.
+
 ---
 
 ## No videos playing
