@@ -1,27 +1,13 @@
 // api/stream.js - Proxy Google Drive videos for HTML5 playback
 // Drive blocks direct streaming; we fetch via Drive API and stream to client.
 
-export default async function GET(request) {
-  const url = new URL(request.url);
-  const id = url.searchParams.get('id');
-  const apiKey = process.env.GOOGLE_DRIVE_API_KEY;
+function getIdFromRequest(request) {
+  const u = request?.url || '';
+  const q = u.includes('?') ? u.split('?')[1] : '';
+  return new URLSearchParams(q).get('id');
+}
 
-  if (!id) {
-    return new Response(JSON.stringify({ error: 'Missing id parameter' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
-  if (!apiKey) {
-    return new Response(
-      JSON.stringify({
-        error: 'GOOGLE_DRIVE_API_KEY not set. Add it in Vercel project settings.',
-      }),
-      { status: 503, headers: { 'Content-Type': 'application/json' } }
-    );
-  }
-
+async function handleStream(request, id, apiKey) {
   const driveUrl = `https://www.googleapis.com/drive/v3/files/${id}?alt=media&key=${apiKey}`;
   const headers = new Headers();
 
@@ -73,4 +59,27 @@ export default async function GET(request) {
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
+}
+
+export default async function GET(request) {
+  const id = getIdFromRequest(request);
+  const apiKey = process.env.GOOGLE_DRIVE_API_KEY;
+
+  if (!id) {
+    return new Response(JSON.stringify({ error: 'Missing id parameter' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  if (!apiKey) {
+    return new Response(
+      JSON.stringify({
+        error: 'GOOGLE_DRIVE_API_KEY not set. Add it in Vercel project settings.',
+      }),
+      { status: 503, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+
+  return handleStream(request, id, apiKey);
 }

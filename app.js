@@ -2,6 +2,12 @@
 
 const videoPlayer = document.getElementById('videoPlayer');
 const noteInput = document.getElementById('noteInput');
+const statusMsg = document.getElementById('statusMsg');
+
+function setStatus(msg) {
+    if (statusMsg) statusMsg.textContent = msg;
+    console.log('[TfD]', msg);
+}
 const leftButton = document.getElementById('leftButton');
 const rightButton = document.getElementById('rightButton');
 const videoIndexSpan = document.getElementById('videoIndex');
@@ -24,6 +30,7 @@ function showLoading(isLoading) {
 const LOAD_TIMEOUT_MS = 12000;
 
 function handleVideoLoadFail(video, reason) {
+    setStatus('Failed: ' + reason);
     showLoading(false);
     console.error("Video load failed:", video?.name, video?.id, reason);
     alert(`Video failed to load: ${video?.name || 'Unknown'}. Add GOOGLE_DRIVE_API_KEY in Vercel settings and ensure Drive files are shared publicly. Skipping...`);
@@ -42,6 +49,7 @@ async function loadVideo(index) {
             return;
         }
 
+        setStatus('Loading video ' + (currentIndex + 1) + '...');
         videoPlayer.src = STREAM_URL_BASE + video.id;
         noteInput.value = '';
 
@@ -56,8 +64,12 @@ async function loadVideo(index) {
             videoPlayer.oncanplaythrough = null;
             videoPlayer.onerror = null;
             if (reason === 'ok') {
+                setStatus('Ready – click play if needed');
                 showLoading(false);
-                videoPlayer.play().catch(e => console.warn("Autoplay prevented:", e));
+                videoPlayer.play().catch(e => {
+                    setStatus('Click to play');
+                    console.warn('Autoplay prevented:', e);
+                });
             } else {
                 handleVideoLoadFail(video, reason);
             }
@@ -160,8 +172,8 @@ document.addEventListener('keydown', (event) => {
 
 // Load videos data and initial progress
 async function init() {
+    setStatus('Loading...');
     try {
-        // Load videos.json
         const videosResponse = await fetch('videos.json');
         if (!videosResponse.ok) {
             throw new Error(`Failed to load videos.json: ${videosResponse.status}`);
@@ -170,11 +182,13 @@ async function init() {
 
         const hasRealIds = allVideos.some(v => !String(v?.id || '').toUpperCase().includes('DUMMY'));
         if (!hasRealIds && allVideos.length > 0) {
+            setStatus('No real video IDs');
             alert('videos.json contains only placeholder IDs (DUMMY_ID). Add real Google Drive file IDs to play videos. Use get_files.py to fetch IDs from a Drive folder.');
             showLoading(false);
             return;
         }
 
+        setStatus(`Loaded ${allVideos.length} videos`);
         videoTotalSpan.textContent = allVideos.length;
 
         // Fetch current progress (fallback to 0 on failure)
@@ -193,6 +207,19 @@ async function init() {
         }
 
         currentIndex = lastIndex;
+        // Pre-check stream API (Range: bytes=0-0 = 1 byte only)
+        const testRes = await fetch('/api/stream?id=' + encodeURIComponent(allVideos[currentIndex]?.id || ''), {
+            headers: { 'Range': 'bytes=0-0' }
+        });
+        if (testRes.status === 503) {
+            setStatus('Add GOOGLE_DRIVE_API_KEY in Vercel');
+            alert('Add GOOGLE_DRIVE_API_KEY in Vercel project settings. See VERCEL_SETUP.md');
+            showLoading(false);
+            return;
+        }
+        if (!testRes.ok) {
+            setStatus('Stream error: ' + testRes.status);
+        }
         loadVideo(currentIndex);
 
     } catch (error) {
