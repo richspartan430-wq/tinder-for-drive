@@ -29,11 +29,26 @@ function showLoading(isLoading) {
 
 const LOAD_TIMEOUT_MS = 12000;
 
-function handleVideoLoadFail(video, reason) {
+async function handleVideoLoadFail(video, reason) {
     setStatus('Failed: ' + reason);
     showLoading(false);
     console.error("Video load failed:", video?.name, video?.id, reason);
-    alert(`Video failed to load: ${video?.name || 'Unknown'}. Add GOOGLE_DRIVE_API_KEY in Vercel settings and ensure Drive files are shared publicly. Skipping...`);
+
+    // Fetch actual error for diagnosis
+    let detail = '';
+    try {
+        const r = await fetch('/api/stream?id=' + encodeURIComponent(video?.id || ''), { headers: { 'Range': 'bytes=0-0' } });
+        const errBody = r.status !== 200 ? await r.text().catch(() => '') : '';
+        if (r.status === 503) detail = '503: API key missing – add GOOGLE_DRIVE_API_KEY in Vercel.';
+        else if (r.status === 403) detail = '403: File not shared publicly. Right‑click folder in Drive → Share → Anyone with link can view.';
+        else if (r.status === 404) detail = '404: File not found. Check the file ID.';
+        else if (r.status === 500) detail = '500: Server error – check Vercel logs.';
+        else if (r.status >= 400) detail = r.status + (errBody ? ': ' + errBody.slice(0, 80) : '');
+    } catch (e) {
+        detail = 'Network error: ' + (e.message || e);
+    }
+
+    alert(`Video failed: ${video?.name || 'Unknown'}\n\n${detail || reason}\n\nSkipping to next...`);
     handleSwipe('skip');
 }
 
