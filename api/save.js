@@ -10,13 +10,20 @@ function blobNotConfiguredResponse() {
   );
 }
 
+async function parseBody(req) {
+  if (typeof req.json === 'function') return req.json();
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  return JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+}
+
 export default async function POST(request) {
   try {
     if (!process.env.BLOB_READ_WRITE_TOKEN) {
       console.warn('BLOB_READ_WRITE_TOKEN not set. Create a Blob store in Vercel.');
       return blobNotConfiguredResponse();
     }
-    const { index, filename, drive_file_id, action, note, classified_by, timestamp } = await request.json();
+    const { index, filename, drive_file_id, action, note, classified_by, timestamp } = await parseBody(request);
 
     // 1. Update results.csv
     const csvBlobName = 'results.csv';
