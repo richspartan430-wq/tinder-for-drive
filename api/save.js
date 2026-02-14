@@ -1,58 +1,65 @@
 // api/save.js
-import { get, put } from '@vercel/blob';
+import { list, put } from '@vercel/blob';
 
 export default async function POST(request) {
   try {
     const { index, filename, drive_file_id, action, note, classified_by, timestamp } = await request.json();
 
     // 1. Update results.csv
-    let csvContent = '';
     const csvBlobName = 'results.csv';
-    try {
-      const existingCsvBlob = await get(csvBlobName);
-      csvContent = await existingCsvBlob.text();
-    } catch (error) {
-      if (error.status === 404) {
-        // If results.csv doesn't exist, create header
-        csvContent = 'index,filename,drive_file_id,action,note,classified_by,timestamp
-';
+    let csvContent = '';
+
+    const { blobs: csvBlobs } = await list({ prefix: csvBlobName, limit: 1 });
+
+    if (csvBlobs.length > 0) {
+      const response = await fetch(csvBlobs[0].url);
+      if (response.ok) {
+        csvContent = await response.text();
       } else {
-        throw error; // Re-throw other errors
+        // If fetch fails but blob exists, start fresh to avoid data loss.
+        console.error(`Failed to fetch existing csv content, starting new file: ${response.statusText}`);
+        csvContent = 'index,filename,drive_file_id,action,note,classified_by,timestamp\n';
       }
+    } else {
+      // If results.csv doesn't exist, create header.
+      csvContent = 'index,filename,drive_file_id,action,note,classified_by,timestamp\n';
     }
 
-    // Append new classification to CSV. Basic escaping for notes.
-    // Ensure any internal double quotes are escaped and the entire note is quoted.
+    // Ensure content ends with a newline before appending.
+    if (!csvContent.endsWith('\n')) {
+        csvContent += '\n';
+    }
+
     const escapedNote = `"${note.replace(/"/g, '""')}"`;
-    const newCsvLine = `${index},"${filename}","${drive_file_id}",${action},${escapedNote},${classified_by},${timestamp}
-`;
+    const newCsvLine = `${index},"${filename}","${drive_file_id}",${action},${escapedNote},"${classified_by}",${timestamp}\n`;
     csvContent += newCsvLine;
 
-    await put(csvBlobName, csvContent, { access: 'public' });
+    await put(csvBlobName, csvContent, { access: 'public', addRandomSuffix: false });
 
     // 2. Update progress.json
     const progressBlobName = 'progress.json';
-    let progress = { last_index: 0 }; // Default if file doesn't exist
-    try {
-        const existingProgressBlob = await get(progressBlobName);
-        progress = JSON.parse(await existingProgressBlob.text());
-    } catch (error) {
-        if (error.status !== 404) {
-            throw error; // Re-throw other errors, but ignore if file not found
+    let progress = { last_index: 0 };
+
+    const { blobs: progressBlobs } = await list({ prefix: progressBlobName, limit: 1 });
+
+    if (progressBlobs.length > 0) {
+        const response = await fetch(progressBlobs[0].url);
+        if (response.ok) {
+            progress = await response.json();
+        } else {
+            console.error(`Failed to fetch existing progress content: ${response.statusText}`);
         }
     }
 
-    // Update last_index if the current video's 1-based index is greater than or equal to the last recorded index.
-    // The frontend requests last_index + 1. So if we classified index X, the next video is X+1.
-    // The `last_index` in progress.json should reflect the index of the last *processed* video.
     if (index > progress.last_index) {
         progress.last_index = index;
-        await put(progressBlobName, JSON.stringify(progress), { access: 'public' });
+        await put(progressBlobName, JSON.stringify(progress), { access: 'public', addRandomSuffix: false });
     }
 
     return new Response(JSON.stringify({ message: 'Classification saved successfully' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+
   } catch (error) {
     console.error("Error in /api/save:", error);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: 'Failed to save classification' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
 }
