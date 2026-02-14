@@ -48,7 +48,7 @@ def list_public_drive_folder_file_ids(folder_id, api_key):
 
 if __name__ == "__main__":
     FOLDER_ID = "1F8qZ5oPohSNVhkg8Di-YXdCpN2jKkcnC"
-    API_KEY = "AIzaSyDysjQLiMPVwXGkwLLhWby7nRek-jYPtzA"  # <-- PASTE YOUR API KEY HERE
+    API_KEY = "YOUR_GOOGLE_API_KEY"  # <-- Get one at console.cloud.google.com
 
     if API_KEY == "YOUR_GOOGLE_API_KEY":
         print("Please replace 'YOUR_GOOGLE_API_KEY' with your actual API key.")

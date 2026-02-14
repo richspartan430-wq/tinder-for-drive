@@ -50,3 +50,11 @@ This browser error usually comes from:
 3. Disable strict tracking prevention for the site
 
 The app itself does **not** use `localStorage` or `sessionStorage`.
+
+---
+
+## No videos playing
+
+1. **Replace DUMMY_ID in videos.json** – The default `videos.json` uses placeholder IDs. Use real Google Drive file IDs. Run `get_files.py` to fetch IDs from a public Drive folder.
+2. **Make Drive folder public** – Right‑click folder → Share → “Anyone with the link can view”.
+3. **Use video file IDs** – Each file in `videos.json` needs the `id` from the Drive file URL (e.g. `https://drive.google.com/file/d/ABC123xyz/view` → `ABC123xyz`).

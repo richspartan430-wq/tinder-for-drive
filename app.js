@@ -21,33 +21,53 @@ function showLoading(isLoading) {
     videoPlayer.style.display = isLoading ? 'none' : 'block';
 }
 
+const LOAD_TIMEOUT_MS = 12000;
+
+function handleVideoLoadFail(video, reason) {
+    showLoading(false);
+    console.error("Video load failed:", video?.name, video?.id, reason);
+    alert(`Video failed to load: ${video?.name || 'Unknown'}. Replace DUMMY_ID in videos.json with real Google Drive file IDs. Skipping...`);
+    handleSwipe('skip');
+}
+
 // Function to load a video
 async function loadVideo(index) {
     if (index >= 0 && index < allVideos.length) {
         showLoading(true);
         currentIndex = index;
         const video = allVideos[currentIndex];
+
+        if (String(video.id || '').toUpperCase().includes('DUMMY')) {
+            handleVideoLoadFail(video, 'Placeholder ID');
+            return;
+        }
+
         videoPlayer.src = STREAM_URL_BASE + video.id;
-        noteInput.value = ''; // Clear note input for new video
+        noteInput.value = '';
 
         videoIndexSpan.textContent = currentIndex + 1;
         videoTotalSpan.textContent = allVideos.length;
 
-        videoPlayer.load(); // Load the new video source
-        
-        // Event listener for when enough data is loaded to play
-        videoPlayer.oncanplaythrough = () => {
-            showLoading(false);
-            videoPlayer.play().catch(e => console.log("Autoplay prevented:", e)); // Attempt to autoplay, catch potential errors
+        let loadSettled = false;
+        const settle = (reason) => {
+            if (loadSettled) return;
+            loadSettled = true;
+            clearTimeout(loadTimeout);
+            videoPlayer.oncanplaythrough = null;
+            videoPlayer.onerror = null;
+            if (reason === 'ok') {
+                showLoading(false);
+                videoPlayer.play().catch(e => console.warn("Autoplay prevented:", e));
+            } else {
+                handleVideoLoadFail(video, reason);
+            }
         };
-        
-        // Error handling for video loading
-        videoPlayer.onerror = () => {
-            console.error("Error loading video:", video.name, video.id);
-            showLoading(false);
-            alert("Error loading video. Skipping to next.");
-            handleSwipe('skip'); // Automatically try next video
-        };
+
+        const loadTimeout = setTimeout(() => settle('timeout'), LOAD_TIMEOUT_MS);
+        videoPlayer.oncanplaythrough = () => settle('ok');
+        videoPlayer.onerror = () => settle('error');
+
+        videoPlayer.load();
     } else if (allVideos.length > 0) {
         // All videos processed
         alert("All videos classified! You've reached the end.");
@@ -107,8 +127,8 @@ async function handleSwipe(action) {
     leftButton.disabled = false;
     rightButton.disabled = false;
 
-    if (saved) {
-        // Move to next video only if saving was successful
+    // Advance on success, or on skip (so load failures don't trap the user)
+    if (saved || action === 'skip') {
         loadVideo(currentIndex + 1);
     }
 }
@@ -148,7 +168,13 @@ async function init() {
         }
         allVideos = await videosResponse.json();
 
-        // Set total video count
+        const hasRealIds = allVideos.some(v => !String(v?.id || '').toUpperCase().includes('DUMMY'));
+        if (!hasRealIds && allVideos.length > 0) {
+            alert('videos.json contains only placeholder IDs (DUMMY_ID). Add real Google Drive file IDs to play videos. Use get_files.py to fetch IDs from a Drive folder.');
+            showLoading(false);
+            return;
+        }
+
         videoTotalSpan.textContent = allVideos.length;
 
         // Fetch current progress (fallback to 0 on failure)
