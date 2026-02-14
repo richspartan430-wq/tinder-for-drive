@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tinder for Drive</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Tinder for Drive</h1>
+        <div class="video-container">
+            <video id="videoPlayer" controls preload="metadata"></video>
+            <div id="loadingSpinner" class="spinner"></div>
+        </div>
+        <div class="controls">
+            <div class="info">
+                <span id="videoIndex">0</span> / <span id="videoTotal">0</span>
+            </div>
+            <textarea id="noteInput" placeholder="Add a note (optional)" rows="3"></textarea>
+            <div class="classifier-select">
+                <label for="classifierName">Classified by:</label>
+                <select id="classifierName">
+                    <option value="You">You</option>
+                    <option value="Friend">Friend</option>
+                </select>
+            </div>
+            <div class="buttons">
+                <button id="leftButton" class="swipe-button left">Left (←)</button>
+                <button id="rightButton" class="swipe-button right">Right (→)</button>
+            </div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
