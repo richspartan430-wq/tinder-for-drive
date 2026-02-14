@@ -151,20 +151,21 @@ async function init() {
         // Set total video count
         videoTotalSpan.textContent = allVideos.length;
 
-        // Fetch current progress
-        const progressResponse = await fetch('/api/progress');
-        if (!progressResponse.ok) {
-            throw new Error(`Failed to load progress: ${progressResponse.status}`);
-        }
-        const progressData = await progressResponse.json();
-        
-        // Ensure last_index is a number and within bounds
-        let lastIndex = parseInt(progressData.last_index, 10);
-        if (isNaN(lastIndex) || lastIndex < 0 || lastIndex >= allVideos.length) {
-            lastIndex = 0; // Default to start if invalid or out of bounds
+        // Fetch current progress (fallback to 0 on failure)
+        let lastIndex = 0;
+        try {
+            const progressResponse = await fetch('/api/progress');
+            if (progressResponse.ok) {
+                const progressData = await progressResponse.json();
+                lastIndex = parseInt(progressData.last_index, 10);
+                if (isNaN(lastIndex) || lastIndex < 0 || lastIndex >= allVideos.length) {
+                    lastIndex = 0;
+                }
+            }
+        } catch (e) {
+            console.warn('Could not load progress, starting from beginning:', e);
         }
 
-        // Start from the next unclassified video
         currentIndex = lastIndex;
         loadVideo(currentIndex);
 

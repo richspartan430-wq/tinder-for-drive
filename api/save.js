@@ -1,8 +1,21 @@
 // api/save.js
 import { list, put } from '@vercel/blob';
 
+function blobNotConfiguredResponse() {
+  return new Response(
+    JSON.stringify({
+      error: 'Vercel Blob storage is not configured. Add BLOB_READ_WRITE_TOKEN in Vercel project settings. See VERCEL_SETUP.md',
+    }),
+    { status: 503, headers: { 'Content-Type': 'application/json' } }
+  );
+}
+
 export default async function POST(request) {
   try {
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      console.warn('BLOB_READ_WRITE_TOKEN not set. Create a Blob store in Vercel.');
+      return blobNotConfiguredResponse();
+    }
     const { index, filename, drive_file_id, action, note, classified_by, timestamp } = await request.json();
 
     // 1. Update results.csv
@@ -59,7 +72,14 @@ export default async function POST(request) {
     return new Response(JSON.stringify({ message: 'Classification saved successfully' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
 
   } catch (error) {
-    console.error("Error in /api/save:", error);
-    return new Response(JSON.stringify({ error: 'Failed to save classification' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    const isBlobError = error?.name === 'BlobError' || error?.message?.includes('No token found');
+    if (isBlobError) {
+      return blobNotConfiguredResponse();
+    }
+    console.error('Error in /api/save:', error);
+    return new Response(JSON.stringify({ error: 'Failed to save classification' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 }

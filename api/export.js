@@ -3,6 +3,17 @@ import { list } from '@vercel/blob';
 
 export default async function GET(request) {
   try {
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      const headers = 'index,filename,drive_file_id,action,note,classified_by,timestamp\n';
+      return new Response(headers, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/csv',
+          'Content-Disposition': 'attachment; filename="results.csv"',
+        },
+      });
+    }
+
     const csvBlobName = 'results.csv';
     const { blobs } = await list({
       prefix: csvBlobName,
@@ -38,7 +49,21 @@ export default async function GET(request) {
     });
 
   } catch (error) {
-    console.error("Error in /api/export:", error);
-    return new Response(JSON.stringify({ error: 'Failed to export results' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    const isBlobError = error?.name === 'BlobError' || error?.message?.includes('No token found');
+    if (isBlobError) {
+      const headers = 'index,filename,drive_file_id,action,note,classified_by,timestamp\n';
+      return new Response(headers, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/csv',
+          'Content-Disposition': 'attachment; filename="results.csv"',
+        },
+      });
+    }
+    console.error('Error in /api/export:', error);
+    return new Response(JSON.stringify({ error: 'Failed to export results' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 }
