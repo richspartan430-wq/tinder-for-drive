@@ -11,8 +11,8 @@ const loadingSpinner = document.getElementById('loadingSpinner');
 
 let allVideos = [];
 let currentIndex = 0;
-// Google Drive direct download link format for streaming
-const STREAM_URL_BASE = "https://drive.google.com/uc?export=download&id=";
+// Use our proxy - Drive blocks direct HTML5 streaming
+const STREAM_URL_BASE = "/api/stream?id=";
 
 // Function to show/hide loading spinner
 function showLoading(isLoading) {
@@ -26,7 +26,7 @@ const LOAD_TIMEOUT_MS = 12000;
 function handleVideoLoadFail(video, reason) {
     showLoading(false);
     console.error("Video load failed:", video?.name, video?.id, reason);
-    alert(`Video failed to load: ${video?.name || 'Unknown'}. Replace DUMMY_ID in videos.json with real Google Drive file IDs. Skipping...`);
+    alert(`Video failed to load: ${video?.name || 'Unknown'}. Add GOOGLE_DRIVE_API_KEY in Vercel settings and ensure Drive files are shared publicly. Skipping...`);
     handleSwipe('skip');
 }
 

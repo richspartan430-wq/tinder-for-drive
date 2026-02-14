@@ -1,5 +1,16 @@
 # Vercel Deployment Setup
 
+## Video streaming – required
+
+Videos are proxied via `/api/stream` because Google Drive blocks direct HTML5 playback.
+
+1. Go to **Project → Settings → Environment Variables**
+2. Add `GOOGLE_DRIVE_API_KEY` with your [Google API key](https://console.cloud.google.com/apis/credentials) (same key used in `get_files.py`)
+3. Enable the Drive API in Google Cloud Console if needed
+4. Redeploy
+
+---
+
 ## Fix: "No token found" / BlobError
 
 The app uses **Vercel Blob** for storing progress and classification results. You must enable it:
