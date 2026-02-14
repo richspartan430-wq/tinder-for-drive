@@ -7,12 +7,19 @@ function getIdFromRequest(request) {
   return new URLSearchParams(q).get('id');
 }
 
+function getHeader(req, name) {
+  const h = req?.headers;
+  if (!h) return null;
+  if (typeof h.get === 'function') return h.get(name);
+  const k = name.toLowerCase();
+  return h[k] ?? h[name] ?? null;
+}
+
 async function handleStream(request, id, apiKey) {
   const driveUrl = `https://www.googleapis.com/drive/v3/files/${id}?alt=media&key=${apiKey}`;
   const headers = new Headers();
 
-  // Forward Range header for video seeking
-  const range = request.headers.get('range');
+  const range = getHeader(request, 'range');
   if (range) {
     headers.set('Range', range);
   }
